@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"errors"
+
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -36,14 +38,47 @@ func run(part2 bool, input string) any {
 	re := regexp.MustCompile(`(?P<direction>[LR])(?P<distance>[0-9]+)`)
 
 	if part2 {
-		// when you're ready to do part 2, remove this "not implemented" block
-		return "not implemented"
+
+		count := 0
+
+		for scanner.Scan() {
+			t := dial.value
+
+			line := scanner.Text()
+			matched := re.FindStringSubmatch(line)
+			iDistance, _ := strconv.Atoi(matched[re.SubexpIndex("distance")])
+
+			s := iDistance / dial.modulus
+			distance, _ := NewModInt(iDistance, modulusSize)
+			if matched[re.SubexpIndex("direction")] == "L" {
+				if dial.value != 0 && distance.value > dial.value {
+					s++
+				}
+				dial, _ = dial.Sub(distance)
+			} else {
+				if (dial.value + distance.value) > dial.modulus {
+					s++
+				}
+				dial, _ = dial.Add(distance)
+			}
+			if dial.value == 0 {
+				s++
+			}
+			fmt.Println(t, "->", line, "->", dial.value, "Crosses", s)
+			count += s
+		}
+
+		if err := scanner.Err(); err != nil {
+			panic(err)
+		}
+		return strconv.Itoa(count)
+
 	} else {
+
 		count := 0
 		for scanner.Scan() {
 			line := scanner.Text()
 			// Process the line here
-
 			if dial.value == 0 {
 				count++
 			}
@@ -75,6 +110,9 @@ func NewModInt(value, modulus int) (*ModInt, error) {
 	if modulus <= 0 {
 		return nil, errors.New("modulus must be positive")
 	}
+	if value > modulus {
+		// fmt.Println("  NewModInt: ", value, s)
+	}
 	v := ((value % modulus) + modulus) % modulus // normalize
 	return &ModInt{value: v, modulus: modulus}, nil
 }
@@ -97,5 +135,11 @@ func (m *ModInt) Sub(other *ModInt) (*ModInt, error) {
 	if m.modulus != other.modulus {
 		return nil, errors.New("modulus mismatch")
 	}
-	return NewModInt(m.modulus+m.value-other.value, m.modulus)
+	t := m.value - other.value
+	// This looks weird, but it forces the correct number of reverse spins
+	if t < 0 {
+		t += m.modulus
+	}
+	return NewModInt(t, m.modulus)
+
 }
